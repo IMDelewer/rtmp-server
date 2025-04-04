@@ -4,6 +4,7 @@ import subprocess
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from rtmp.server import Server
 
 app = FastAPI()
 
@@ -17,17 +18,17 @@ if not os.path.exists(STREAM_KEYS_FILE):
     with open(STREAM_KEYS_FILE, "w") as f:
         json.dump({}, f)
 
-# Загружает ключи потоков
+# Загружаем ключи потоков
 def load_stream_keys():
     with open(STREAM_KEYS_FILE, "r") as f:
         return json.load(f)
 
-# Сохраняет ключи потоков
+# Сохраняем ключи потоков
 def save_stream_keys(data):
     with open(STREAM_KEYS_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-# Запущенные процессы FFmpeg
+# Запущенные FFmpeg процессы
 ffmpeg_processes = {}
 
 class StreamKey(BaseModel):
@@ -35,7 +36,7 @@ class StreamKey(BaseModel):
 
 @app.get("/")
 def home():
-    return {"message": "🔥 RTMP-сервер на FastAPI работает! Стримьте через /rtmp и смотрите через /hls"}
+    return {"message": "🔥 Чистый RTMP-сервер на Python работает! Стримьте через /rtmp и смотрите через /hls"}
 
 @app.post("/rtmp/{stream_key}")
 def start_stream(stream_key: str):
@@ -44,7 +45,7 @@ def start_stream(stream_key: str):
     if stream_key not in stream_keys:
         raise HTTPException(status_code=403, detail="❌ Неверный ключ потока!")
 
-    rtmp_url = f"rtmp://0.0.0.0:1935/live/{stream_key}"
+    rtmp_url = f"rtmp://127.0.0.1:1935/live/{stream_key}"
     hls_output = f"{HLS_PATH}/{stream_key}.m3u8"
 
     # Запускаем FFmpeg для HLS
@@ -95,4 +96,14 @@ def stop_stream(stream_key: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    from threading import Thread
+
+    # Запускаем RTMP-сервер в фоновом режиме
+    def run_rtmp():
+        server = Server("0.0.0.0", 1935)
+        server.run()
+
+    Thread(target=run_rtmp, daemon=True).start()
+
+    # Запускаем FastAPI
+    uvicorn.run(app, host="0.0.0.0", port=5000)
