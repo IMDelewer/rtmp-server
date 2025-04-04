@@ -1,16 +1,16 @@
 import os
-import json
 import subprocess
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
-from rtmp.server import Server
+import json
 
-app = FastAPI()
-
-# Папка для HLS
+# Создание папки для HLS
 HLS_PATH = "hls"
 os.makedirs(HLS_PATH, exist_ok=True)
+
+# Инициализация FastAPI
+app = FastAPI()
 
 # Файл с ключами потоков
 STREAM_KEYS_FILE = "streams.json"
@@ -36,7 +36,7 @@ class StreamKey(BaseModel):
 
 @app.get("/")
 def home():
-    return {"message": "🔥 Чистый RTMP-сервер на Python работает! Стримьте через /rtmp и смотрите через /hls"}
+    return {"message": "🔥 RTMP сервер на Python с FFmpeg работает! Стримьте через /rtmp и смотрите через /hls"}
 
 @app.post("/rtmp/{stream_key}")
 def start_stream(stream_key: str):
@@ -94,16 +94,10 @@ def stop_stream(stream_key: str):
         return {"message": f"🛑 Стрим {stream_key} остановлен"}
     raise HTTPException(status_code=404, detail="❌ Стрим не найден!")
 
+# Запуск FastAPI сервера
 if __name__ == "__main__":
     import uvicorn
     from threading import Thread
 
-    # Запускаем RTMP-сервер в фоновом режиме
-    def run_rtmp():
-        server = Server("0.0.0.0", 1935)
-        server.run()
-
-    Thread(target=run_rtmp, daemon=True).start()
-
-    # Запускаем FastAPI
+    # Запуск FastAPI
     uvicorn.run(app, host="0.0.0.0", port=5000)
